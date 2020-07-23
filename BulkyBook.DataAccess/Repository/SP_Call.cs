@@ -10,7 +10,7 @@ using System.Text;
 
 namespace BulkyBook.DataAccess.Repository
 {
-    public class SP_Call : ISP_CALL
+    public class SP_Call : ISP_Call
     {
         private readonly ApplicationDbContext _db;
         private static string ConnectionString = "";
