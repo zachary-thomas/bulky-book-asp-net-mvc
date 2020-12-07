@@ -16,5 +16,6 @@ namespace BulkyBook.DataAccess.Data
 
         // Define that Category will go into the database
         public DbSet<Category> Categories { get; set; }
+        public DbSet<CoverType> CoverTypes { get; set; }
     }
 }
