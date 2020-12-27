@@ -4,10 +4,10 @@
     var title = "Create Product";
 }
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
     <div class="row p-3 border">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-        @if(Model.Product.Id != 0)
+        @if (Model.Product.Id != 0)
         {
             //edit
             title = "Edit Product";
@@ -99,6 +99,24 @@
                 </div>
             </div>
             <div class="form-group row">
+                <div class="col-4">
+                    Cover Type
+                </div>
+                <div class="col-8">
+                    @Html.DropDownListFor(m => m.Product.CoverTypeId, Model.CoverTypeList, "-Select a Cover Type",
+                    new { @class = "form-control" })
+                    <span asp-validation-for="Product.CoverTypeId" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="form-group row">
+                <div class="col-4">
+                    Image
+                </div>
+                <div class="col-8">
+                    <input type="file" name="files" id="uploadBox" multiple class="form-control" />
+                </div>
+            </div>
+            <div class="form-group row">
                 <div class="col-8 offset-4">
                     @if (Model.Product.Id != 0)
                     {
@@ -106,7 +124,14 @@
                     }
                     else
                     {
-                        <partial name="_CreateAndBackToListButton" />
+                        <div class="row">
+                            <div class="col">
+                                <button type="submit" onclick="return validateInput()" class="btn btn-primary form-control">Create</button>
+                            </div>
+                            <div class="col">
+                                <a asp-action="Index" class="btn btn-success form-control">Back to List</a>
+                            </div>
+                        </div>
                     }
                 </div>
             </div>
@@ -114,6 +139,24 @@
     </div>
 </form>
 
-@section Scripts{ 
-<partial name="_ValidationScriptsPartial" />
+@section Scripts{
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.tiny.cloud/1/ybxpzf4mwg1t96duoiofoihoz1l9h6scgobgxi34gxcbn2xo/tinymce/5/tinymce.min.js"></script>
+
+<script>
+    tinymce.init({
+        selector: 'textarea',
+        plugins: 'lists',
+        menubar: 'file edit format'
+    });
+
+    function validateInput() {
+        if (document.getElementById("uploadBox").value == "") {
+            swal("Error", "Please select an image", "error");
+            return false;
+        }
+        return true;
+    };
+
+</script>
 }
