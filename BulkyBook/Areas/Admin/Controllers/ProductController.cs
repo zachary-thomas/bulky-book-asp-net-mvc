@@ -38,7 +38,8 @@ namespace BulkyBook.Areas.Admin.Controllers
             ProductVM productVM = new ProductVM()
             {
                 Product = new Product(),
-                CategoryList = _unitOfWork.Category.GetAll().Select(i => new SelectListItem {
+                CategoryList = _unitOfWork.Category.GetAll().Select(i => new SelectListItem
+                {
                     Text = i.Name,
                     Value = i.Id.ToString()
                 }),
@@ -49,7 +50,7 @@ namespace BulkyBook.Areas.Admin.Controllers
                 })
             };
 
-            if(id == null)
+            if (id == null)
             {
                 // Create
                 return View(productVM);
@@ -118,6 +119,26 @@ namespace BulkyBook.Areas.Admin.Controllers
                 _unitOfWork.Save();
                 return RedirectToAction(nameof(Index));
             }
+            else
+            {
+                // These need to be repopulated if the model is invalid, otherwise the view will error
+                productVM.CategoryList = _unitOfWork.Category.GetAll().Select(i => new SelectListItem
+                {
+                    Text = i.Name,
+                    Value = i.Id.ToString()
+                });
+                productVM.CoverTypeList = _unitOfWork.CoverType.GetAll().Select(i => new SelectListItem
+                {
+                    Text = i.Name,
+                    Value = i.Id.ToString()
+                });
+
+                // If updating the product, repopulate the model
+                if( productVM.Product.Id != 0 )
+                {
+                    productVM.Product = _unitOfWork.Product.Get(productVM.Product.Id);
+                }
+            }
 
             return View(productVM);
         }
@@ -136,9 +157,16 @@ namespace BulkyBook.Areas.Admin.Controllers
         {
             var objFromDb = _unitOfWork.Product.Get(id);
 
-            if(objFromDb == null)
+            if (objFromDb == null)
             {
                 return Json(new { success = false, message = "Error while deleting" });
+            }
+
+            string webRootPath = _hostEnvironment.WebRootPath;
+            var imagePath = Path.Combine(webRootPath, objFromDb.ImageUrl.TrimStart('\\'));
+            if (System.IO.File.Exists(imagePath))
+            {
+                System.IO.File.Delete(imagePath);
             }
 
             _unitOfWork.Product.Remove(objFromDb);
