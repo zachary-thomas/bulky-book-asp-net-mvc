@@ -121,7 +121,8 @@ namespace BulkyBook.Areas.Admin.Controllers
             }
             else
             {
-                // These need to be repopulated if the model is invalid, otherwise the view will error
+                // These need to be repopulated if the model is invalid, 
+                // otherwise the view will error without client validation.
                 productVM.CategoryList = _unitOfWork.Category.GetAll().Select(i => new SelectListItem
                 {
                     Text = i.Name,
