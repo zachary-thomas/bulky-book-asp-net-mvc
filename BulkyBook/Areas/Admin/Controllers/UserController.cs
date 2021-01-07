@@ -2,21 +2,24 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BulkyBook.DataAccess.Data;
 using BulkyBook.DataAccess.Repository.IRepository;
 using BulkyBook.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace BulkyBook.Areas.Admin.Controllers
 {
     // Explicitly Admin Area
     [Area("Admin")]
-    public class CategoryController : Controller
+    public class UserController : Controller
     {
-        private readonly IUnitOfWork _unitOfWork;
+        // Different than IUnitOfWork for example
+        private readonly ApplicationDbContext _db;
 
-        public CategoryController(IUnitOfWork unitOfWork)
+        public UserController(ApplicationDbContext db)
         {
-            _unitOfWork = unitOfWork;
+            _db = db;
         }
 
         public IActionResult Index()
@@ -24,71 +27,33 @@ namespace BulkyBook.Areas.Admin.Controllers
             return View();
         }
 
-        // Insert and Update - Can get a null for creating
-        public IActionResult Upsert(int? id)
-        {
-            Category category = new Category();
-            if(id == null)
-            {
-                // Create
-                return View(category);
-            }
-
-            // Edit
-            category = _unitOfWork.Category.Get(id.GetValueOrDefault());
-            if (category == null)
-            {
-                return NotFound();
-            }
-
-            return View(category);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Upsert(Category category)
-        {
-            if (ModelState.IsValid)
-            {
-                if(category.Id == 0)
-                {
-                    _unitOfWork.Category.Add(category);
-                }
-                else
-                {
-                    _unitOfWork.Category.Update(category);
-                }
-
-                _unitOfWork.Save();
-                return RedirectToAction(nameof(Index));
-            }
-
-            return View(category);
-        }
-
         #region API CALLS
 
         [HttpGet]
         public IActionResult GetAll()
         {
-            var allObj = _unitOfWork.Category.GetAll();
-            return Json(new { data = allObj });
-        }
+            // if companyId isn't null, user will have a company object
+            var userList = _db.ApplicationUsers.Include(u => u.Company).ToList();
+            var userRole = _db.UserRoles.ToList();
+            var roles = _db.Roles.ToList();
 
-        [HttpDelete]
-        public IActionResult Delete(int id)
-        {
-            var objFromDb = _unitOfWork.Category.Get(id);
-
-            if(objFromDb == null)
+            // User's role is not linked in DB, so we have to manually populate
+            // for example
+            foreach(var user in userList)
             {
-                return Json(new { success = false, message = "Error while deleting" });
+                var roleId = userRole.FirstOrDefault(u => u.UserId == user.Id).RoleId;
+                user.Role = roles.FirstOrDefault(user => user.Id == roleId).Name;
+
+                if(user.Company == null)
+                {
+                    user.Company = new Company()
+                    {
+                        Name = ""
+                    };
+                }
             }
 
-            _unitOfWork.Category.Remove(objFromDb);
-            _unitOfWork.Save();
-
-            return Json(new { success = true, message = "Delete Successful" });
+            return Json(new { data = userList });
         }
 
         #endregion
