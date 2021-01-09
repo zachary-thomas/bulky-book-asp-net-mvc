@@ -24,9 +24,14 @@ namespace BulkyBook
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+
+            // Not included in repo. Just a configuration object with strings
+            // related to Facebook and Google authentication.
+            SecretProperties = new SecretProperties();
         }
 
         public IConfiguration Configuration { get; }
+        public SecretProperties SecretProperties { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         // Used for dependency injection inside the app.
@@ -49,6 +54,16 @@ namespace BulkyBook
                 options.LoginPath = $"/Identity/Account/Login";
                 options.LogoutPath = $"/Identity/Account/Logout";
                 options.AccessDeniedPath = $"/Identity/Account/AccessDenied";
+            });
+
+            services.AddAuthentication().AddFacebook(options => {
+                options.AppId = SecretProperties.FacebookAppId;
+                options.AppSecret = SecretProperties.FacebookSecret;
+            });
+
+            services.AddAuthentication().AddGoogle(options => {
+                options.ClientId = SecretProperties.GoogleClientId;
+                options.ClientSecret = SecretProperties.GoogleClientSecret;
             });
         }
 
