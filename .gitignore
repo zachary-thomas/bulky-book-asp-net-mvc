@@ -342,3 +342,4 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 /BulkyBook.Utility/SecretProperties.cs
+/BulkyBook/secrets.json

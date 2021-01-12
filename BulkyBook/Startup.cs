@@ -16,6 +16,7 @@ using BulkyBook.DataAccess.Repository.IRepository;
 using BulkyBook.DataAccess.Repository;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using BulkyBook.Utility;
+using System.IO;
 
 namespace BulkyBook
 {
@@ -24,10 +25,6 @@ namespace BulkyBook
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-
-            // Not included in repo. Just a configuration object with strings
-            // related to Facebook and Google authentication.
-            SecretProperties = new SecretProperties();
         }
 
         public IConfiguration Configuration { get; }
@@ -48,6 +45,16 @@ namespace BulkyBook
             services.AddControllersWithViews().AddRazorRuntimeCompilation();
             services.AddRazorPages();
 
+            // Not included in repo. Just a configuration object with strings
+            // related to Facebook, Google authentication, and email settings
+            // inside secrets.json
+            var secretPropertiesConfig = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("secrets.json")
+                .Build();
+
+            services.Configure<SecretProperties>(secretPropertiesConfig);
+
             // Needed for redirect on authorization
             services.ConfigureApplicationCookie(options =>
             {
@@ -56,14 +63,16 @@ namespace BulkyBook
                 options.AccessDeniedPath = $"/Identity/Account/AccessDenied";
             });
 
+            SecretProperties secretPropertiesObject = secretPropertiesConfig.Get<SecretProperties>();
+
             services.AddAuthentication().AddFacebook(options => {
-                options.AppId = SecretProperties.FacebookAppId;
-                options.AppSecret = SecretProperties.FacebookSecret;
+                options.AppId = secretPropertiesObject.FacebookAppId;
+                options.AppSecret = secretPropertiesObject.FacebookSecret;
             });
 
             services.AddAuthentication().AddGoogle(options => {
-                options.ClientId = SecretProperties.GoogleClientId;
-                options.ClientSecret = SecretProperties.GoogleClientSecret;
+                options.ClientId = secretPropertiesObject.GoogleClientId;
+                options.ClientSecret = secretPropertiesObject.GoogleClientSecret;
             });
         }
 
