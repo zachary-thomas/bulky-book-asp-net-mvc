@@ -22,6 +22,7 @@ namespace BulkyBook.Utility
 
         public static double GetPriceBasedOnQuantity(double quantity, double price, double price50, double price100)
         {
+
             if (quantity < 50)
             {
                 return price;
