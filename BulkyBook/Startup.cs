@@ -17,6 +17,7 @@ using BulkyBook.DataAccess.Repository;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using BulkyBook.Utility;
 using System.IO;
+using AutoMapper;
 
 namespace BulkyBook
 {
@@ -80,6 +81,17 @@ namespace BulkyBook
                 options.Cookie.HttpOnly = true;
                 options.Cookie.IsEssential = true;
             });
+
+            // Auto Mapper Configurations
+            // help from:
+            // https://stackoverflow.com/questions/40275195/how-to-set-up-automapper-in-asp-net-core
+            var mapperConfig = new MapperConfiguration(mc =>
+            {
+                mc.AddProfile(new MappingProfile());
+            });
+
+            IMapper mapper = mapperConfig.CreateMapper();
+            services.AddSingleton(mapper);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

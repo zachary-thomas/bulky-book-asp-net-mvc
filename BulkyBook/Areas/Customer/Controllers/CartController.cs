@@ -1,4 +1,5 @@
-﻿using BulkyBook.DataAccess.Repository.IRepository;
+﻿using AutoMapper;
+using BulkyBook.DataAccess.Repository.IRepository;
 using BulkyBook.Models;
 using BulkyBook.Models.ViewModels;
 using BulkyBook.Utility;
@@ -7,8 +8,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
@@ -23,24 +22,24 @@ namespace BulkyBook.Areas.Customer.Controllers
         private readonly IUnitOfWork unitOfWork;
         private readonly IEmailSender emailSender;
         private readonly UserManager<IdentityUser> userManager;
-
-        public ShoppingCartVM ShoppingCartVM { get; set; }
+        private readonly IMapper mapper;
 
         public CartController(IUnitOfWork unitOfWork, 
             IEmailSender emailSender, 
-            UserManager<IdentityUser> userManager)
+            UserManager<IdentityUser> userManager,
+            IMapper mapper)
         {
             this.unitOfWork = unitOfWork;
             this.emailSender = emailSender;
             this.userManager = userManager;
+            this.mapper = mapper;
         }
 
         public IActionResult Index()
         {
-            var claimsIdentity = (ClaimsIdentity)User.Identity;
-            var claim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
+            Claim claim = GetClaim();
 
-            ShoppingCartVM = new ShoppingCartVM()
+            var shoppingCartVM = new ShoppingCartVM()
             {
                 OrderHeader = new Models.OrderHeader(),
 
@@ -49,37 +48,21 @@ namespace BulkyBook.Areas.Customer.Controllers
                     .GetAll(u => u.ApplicationUserId == claim.Value, includeProperties: "Product")
             };
 
-            ShoppingCartVM.OrderHeader.OrderTotal = 0;
+            shoppingCartVM.OrderHeader.OrderTotal = 0;
 
-            ShoppingCartVM.OrderHeader.ApplicationUser = unitOfWork.ApplicationUser
+            shoppingCartVM.OrderHeader.ApplicationUser = unitOfWork.ApplicationUser
                 .GetFirstOrDefault(u => u.Id == claim.Value, includeProperties: "Company");
 
-            foreach(var shoppingCart in ShoppingCartVM.ListCart)
-            {
-                shoppingCart.Price = SD.GetPriceBasedOnQuantity(shoppingCart.Count, 
-                    shoppingCart.Product.Price, 
-                    shoppingCart.Product.Price50, 
-                    shoppingCart.Product.Price100);
+            FormatShoppingCart(shoppingCartVM);
 
-                ShoppingCartVM.OrderHeader.OrderTotal += (shoppingCart.Price * shoppingCart.Count);
-
-                shoppingCart.Product.Description = SD.ConvertToRawHtml(shoppingCart.Product.Description);
-
-                if(shoppingCart.Product.Description.Length > 100)
-                {
-                    shoppingCart.Product.Description = shoppingCart.Product.Description.Substring(0, 99) + "...";
-                }
-            }
-
-            return View(ShoppingCartVM);
+            return View(shoppingCartVM);
         }
 
         [HttpPost]
         [ActionName("Index")]
         public async Task<IActionResult> IndexPOST()
         {
-            var claimsIdentity = (ClaimsIdentity)User.Identity;
-            var claim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
+            Claim claim = GetClaim();
             var user = unitOfWork.ApplicationUser.GetFirstOrDefault(u => u.Id == claim.Value);
 
             if(user == null)
@@ -144,6 +127,29 @@ namespace BulkyBook.Areas.Customer.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        public IActionResult Summary()
+        {
+            Claim claim = GetClaim();
+
+            var shoppingCartVM = new ShoppingCartVM()
+            {
+                OrderHeader = new Models.OrderHeader(),
+                ListCart = unitOfWork.ShoppingCart
+                    .GetAll(c => c.ApplicationUserId == claim.Value, includeProperties: "Product")
+            };
+
+            shoppingCartVM.OrderHeader.ApplicationUser = unitOfWork.ApplicationUser
+                .GetFirstOrDefault(c => c.Id == claim.Value, includeProperties: "Company");
+
+            FormatShoppingCart(shoppingCartVM);
+
+            shoppingCartVM.OrderHeader.Name = shoppingCartVM.OrderHeader.ApplicationUser.Name;
+
+            shoppingCartVM.OrderHeader = mapper.Map<OrderHeader>(shoppingCartVM.OrderHeader.ApplicationUser);
+
+            return View(shoppingCartVM);
+        }
+
         private void SetPrice(ShoppingCart cart)
         {
             SD.GetPriceBasedOnQuantity(cart.Count,
@@ -160,6 +166,30 @@ namespace BulkyBook.Areas.Customer.Controllers
             unitOfWork.Save();
 
             HttpContext.Session.SetInt32(SD.ShoppingCartSession, count - 1);
+        }
+
+        private Claim GetClaim()
+        {
+            var claimsIdentity = (ClaimsIdentity)User.Identity;
+            var claim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
+            return claim;
+        }
+
+        private void FormatShoppingCart(ShoppingCartVM shoppingCartVM)
+        {
+            foreach (var shoppingCart in shoppingCartVM.ListCart)
+            {
+                SetPrice(shoppingCart);
+
+                shoppingCartVM.OrderHeader.OrderTotal += (shoppingCart.Price * shoppingCart.Count);
+
+                shoppingCart.Product.Description = SD.ConvertToRawHtml(shoppingCart.Product.Description);
+
+                if (shoppingCart.Product.Description.Length > 100)
+                {
+                    shoppingCart.Product.Description = shoppingCart.Product.Description.Substring(0, 99) + "...";
+                }
+            }
         }
 
     }
