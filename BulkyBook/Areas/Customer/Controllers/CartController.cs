@@ -145,14 +145,22 @@ namespace BulkyBook.Areas.Customer.Controllers
 
             shoppingCartVM.OrderHeader.Name = shoppingCartVM.OrderHeader.ApplicationUser.Name;
 
-            shoppingCartVM.OrderHeader = mapper.Map<OrderHeader>(shoppingCartVM.OrderHeader.ApplicationUser);
+            //shoppingCartVM.OrderHeader = mapper
+            //    .Map<ApplicationUser, OrderHeader>(shoppingCartVM.OrderHeader.ApplicationUser);
+
+            shoppingCartVM.OrderHeader.Name = shoppingCartVM.OrderHeader.ApplicationUser.Name;
+            shoppingCartVM.OrderHeader.PhoneNumber = shoppingCartVM.OrderHeader.ApplicationUser.PhoneNumber;
+            shoppingCartVM.OrderHeader.StreetAddress = shoppingCartVM.OrderHeader.ApplicationUser.StreetAddress;
+            shoppingCartVM.OrderHeader.City = shoppingCartVM.OrderHeader.ApplicationUser.City;
+            shoppingCartVM.OrderHeader.State = shoppingCartVM.OrderHeader.ApplicationUser.State;
+            shoppingCartVM.OrderHeader.PostalCode = shoppingCartVM.OrderHeader.ApplicationUser.PostalCode;
 
             return View(shoppingCartVM);
         }
 
-        private void SetPrice(ShoppingCart cart)
+        private double SetPrice(ShoppingCart cart)
         {
-            SD.GetPriceBasedOnQuantity(cart.Count,
+            return SD.GetPriceBasedOnQuantity(cart.Count,
                 cart.Product.Price,
                 cart.Product.Price50,
                 cart.Product.Price100);
@@ -179,7 +187,7 @@ namespace BulkyBook.Areas.Customer.Controllers
         {
             foreach (var shoppingCart in shoppingCartVM.ListCart)
             {
-                SetPrice(shoppingCart);
+                shoppingCart.Price = SetPrice(shoppingCart);
 
                 shoppingCartVM.OrderHeader.OrderTotal += (shoppingCart.Price * shoppingCart.Count);
 
