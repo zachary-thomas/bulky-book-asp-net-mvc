@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using BulkyBook.Utility;
 using System.IO;
 using AutoMapper;
+using Stripe;
 
 namespace BulkyBook
 {
@@ -26,10 +27,19 @@ namespace BulkyBook
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+
+            // Not included in repo. Just a configuration object with strings
+            // related to Facebook, Google authentication, email settings, and Stripe
+            // inside secrets.json
+            SecretPropertiesConfig = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("secrets.json")
+                .Build();
         }
 
         public IConfiguration Configuration { get; }
         public SecretProperties SecretProperties { get; }
+        public IConfigurationRoot SecretPropertiesConfig { get; private set; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         // Used for dependency injection inside the app.
@@ -46,15 +56,8 @@ namespace BulkyBook
             services.AddControllersWithViews().AddRazorRuntimeCompilation();
             services.AddRazorPages();
 
-            // Not included in repo. Just a configuration object with strings
-            // related to Facebook, Google authentication, and email settings
-            // inside secrets.json
-            var secretPropertiesConfig = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("secrets.json")
-                .Build();
-
-            services.Configure<SecretProperties>(secretPropertiesConfig);
+            services.Configure<SecretProperties>(SecretPropertiesConfig);
+            services.Configure<StripeSettings>(SecretPropertiesConfig.GetSection("StripeSettings"));
 
             // Needed for redirect on authorization
             services.ConfigureApplicationCookie(options =>
@@ -64,7 +67,7 @@ namespace BulkyBook
                 options.AccessDeniedPath = $"/Identity/Account/AccessDenied";
             });
 
-            SecretProperties secretPropertiesObject = secretPropertiesConfig.Get<SecretProperties>();
+            SecretProperties secretPropertiesObject = SecretPropertiesConfig.Get<SecretProperties>();
 
             services.AddAuthentication().AddFacebook(options => {
                 options.AppId = secretPropertiesObject.FacebookAppId;
@@ -112,6 +115,9 @@ namespace BulkyBook
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            StripeConfiguration.ApiKey = 
+                SecretPropertiesConfig.GetSection("StripeSettings")["StripeSecretKey"];
 
             app.UseSession();
 
