@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Stripe;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
@@ -156,6 +159,100 @@ namespace BulkyBook.Areas.Customer.Controllers
             shoppingCartVM.OrderHeader.PostalCode = shoppingCartVM.OrderHeader.ApplicationUser.PostalCode;
 
             return View(shoppingCartVM);
+        }
+
+        [HttpPost]
+        [ActionName("Summary")]
+        [ValidateAntiForgeryToken]
+        public IActionResult SummaryPost(ShoppingCartVM shoppingCartVM, string stripeToken)
+        {
+            Claim claim = GetClaim();
+
+            shoppingCartVM.OrderHeader.ApplicationUser = unitOfWork.ApplicationUser
+                .GetFirstOrDefault(c => c.Id == claim.Value, includeProperties: "Company");
+
+            shoppingCartVM.ListCart = unitOfWork.ShoppingCart
+                .GetAll(c => c.ApplicationUserId == claim.Value,includeProperties: "Product");
+
+            shoppingCartVM.OrderHeader.PaymentStatus = SD.PaymentStatusPending;
+            shoppingCartVM.OrderHeader.OrderStatus = SD.StatusPending;
+            shoppingCartVM.OrderHeader.ApplicationUserId = claim.Value;
+            shoppingCartVM.OrderHeader.OrderDate = DateTime.Now;
+
+            unitOfWork.OrderHeader.Add(shoppingCartVM.OrderHeader);
+            unitOfWork.Save();
+
+            List<OrderDetails> orderDetailsList = new List<OrderDetails>();
+
+            foreach (var item in shoppingCartVM.ListCart)
+            {
+                item.Price = SetPrice(item);
+
+                OrderDetails orderDetails = new OrderDetails()
+                {
+                    ProductId = item.ProductId,
+                    OrderId = shoppingCartVM.OrderHeader.Id,
+                    Price = item.Price,
+                    Count = item.Count
+                };
+                shoppingCartVM.OrderHeader.OrderTotal += orderDetails.Count * orderDetails.Price;
+                unitOfWork.OrderDetails.Add(orderDetails);
+            }
+
+            unitOfWork.ShoppingCart.RemoveRange(shoppingCartVM.ListCart);
+
+            // Save in one call to remove cart and add order details
+            unitOfWork.Save();
+            HttpContext.Session.SetInt32(SD.ShoppingCartSession, 0);
+
+            if (stripeToken == null)
+            {
+                //order will be created for delayed payment for authroized company
+                shoppingCartVM.OrderHeader.PaymentDueDate = DateTime.Now.AddDays(30);
+                shoppingCartVM.OrderHeader.PaymentStatus = SD.PaymentStatusDelayedPayment;
+                shoppingCartVM.OrderHeader.OrderStatus = SD.StatusApproved;
+            }
+            else
+            {
+                //process the payment
+                var options = new ChargeCreateOptions
+                {
+                    Amount = Convert.ToInt32(shoppingCartVM.OrderHeader.OrderTotal * 100),
+                    Currency = "usd",
+                    Description = "Order ID : " + shoppingCartVM.OrderHeader.Id,
+                    Source = stripeToken
+                };
+
+                var service = new ChargeService();
+
+                // Makes charge on card
+                Charge charge = service.Create(options);
+
+                if (charge.Id == null)
+                {
+                    shoppingCartVM.OrderHeader.PaymentStatus = SD.PaymentStatusRejected;
+                }
+                else
+                {
+                    shoppingCartVM.OrderHeader.TransactionId = charge.Id;
+                }
+                if (charge.Status.ToLower() == "succeeded")
+                {
+                    shoppingCartVM.OrderHeader.PaymentStatus = SD.PaymentStatusApproved;
+                    shoppingCartVM.OrderHeader.OrderStatus = SD.StatusApproved;
+                    shoppingCartVM.OrderHeader.PaymentDate = DateTime.Now;
+                }
+            }
+
+            unitOfWork.Save();
+
+            return RedirectToAction("OrderConfirmation", "Cart", new { id = shoppingCartVM.OrderHeader.Id });
+
+        }
+
+        public IActionResult OrderConfirmation(int id)
+        {
+            return View(id);
         }
 
         private double SetPrice(ShoppingCart cart)
