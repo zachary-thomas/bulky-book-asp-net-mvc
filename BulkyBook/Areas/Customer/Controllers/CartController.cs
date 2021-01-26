@@ -205,6 +205,7 @@ namespace BulkyBook.Areas.Customer.Controllers
             unitOfWork.Save();
             HttpContext.Session.SetInt32(SD.ShoppingCartSession, 0);
 
+            // Should only be null if the user ordering is an authorized company
             if (stripeToken == null)
             {
                 //order will be created for delayed payment for authroized company
