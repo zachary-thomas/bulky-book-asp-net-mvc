@@ -182,8 +182,6 @@ namespace BulkyBook.Areas.Customer.Controllers
             unitOfWork.OrderHeader.Add(shoppingCartVM.OrderHeader);
             unitOfWork.Save();
 
-            List<OrderDetails> orderDetailsList = new List<OrderDetails>();
-
             foreach (var item in shoppingCartVM.ListCart)
             {
                 item.Price = SetPrice(item);
