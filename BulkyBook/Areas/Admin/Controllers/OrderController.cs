@@ -56,9 +56,13 @@ namespace BulkyBook.Areas.Admin.Controllers
         [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Employee)]
         public IActionResult ShipOrder(int id)
         {
-            OrderHeader orderHeader = unitOfWork.OrderHeader.GetFirstOrDefault(u => u.Id == id);
+            // OrderDetailsVM could also be passed in, but it is binded in the controller,
+            // so we don't have to pass the id.
+            //OrderHeader orderHeader = unitOfWork.OrderHeader.GetFirstOrDefault(u => u.Id == id);
 
-            // OrderDetailsVM could also be passed in, but it is binded in the controller
+            OrderHeader orderHeader = unitOfWork.OrderHeader
+                .GetFirstOrDefault(u => u.Id == OrderDetailsVM.OrderHeader.Id);
+
             orderHeader.TrackingNumber = OrderDetailsVM.OrderHeader.TrackingNumber;
             orderHeader.Carrier = OrderDetailsVM.OrderHeader.Carrier;
             orderHeader.OrderStatus = SD.StatusShipped;
@@ -98,6 +102,50 @@ namespace BulkyBook.Areas.Admin.Controllers
 
             unitOfWork.Save();
             return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [ActionName("Details")]
+        public IActionResult Details(string stripeToken)
+        {
+            OrderHeader orderHeader = unitOfWork.OrderHeader.GetFirstOrDefault(u => u.Id == OrderDetailsVM.OrderHeader.Id,
+                includeProperties: "ApplicationUser");
+
+            if (stripeToken != null)
+            {
+                //process the payment
+                var options = new ChargeCreateOptions
+                {
+                    Amount = Convert.ToInt32(orderHeader.OrderTotal * 100),
+                    Currency = "usd",
+                    Description = "Order ID : " + orderHeader.Id,
+                    Source = stripeToken
+                };
+
+                var service = new ChargeService();
+                Charge charge = service.Create(options);
+
+                if (charge.Id == null)
+                {
+                    orderHeader.PaymentStatus = SD.PaymentStatusRejected;
+                }
+                else
+                {
+                    orderHeader.TransactionId = charge.Id;
+                }
+                if (charge.Status.ToLower() == "succeeded")
+                {
+                    orderHeader.PaymentStatus = SD.PaymentStatusApproved;
+
+                    orderHeader.PaymentDate = DateTime.Now;
+                }
+
+                unitOfWork.Save();
+
+            }
+
+            return RedirectToAction("Details", "Order", new { id = orderHeader.Id });
         }
 
         #region API CALLS

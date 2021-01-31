@@ -1,6 +1,8 @@
 ﻿@model BulkyBook.Models.ViewModels.OrderDetailsVM
 @using BulkyBook.Utility
+@using Microsoft.Extensions.Options
 
+@inject IOptions<BulkyBook.Utility.StripeSettings> Stripe
 
 <form method="post">
     <input hidden asp-for="OrderHeader.Id" />
@@ -208,20 +210,21 @@
                                 <span class="text-primary">Order Summary</span>
                             </h4>
                             <ul class="list-group mb-3">
-                                @foreach(var details in Model.OrderDetails) {
-                                <li class="list-group-item d-flex justify-content-between p-2">
-                                    <div class="row container">
-                                        <div class="col-8">
-                                            <input type="hidden" asp-for="@details.Id" />
-                                            <h6 class="my-0 text-primary">@details.Product.Title</h6>
-                                            <small class="text-muted">Price : @details.Price.ToString("C2")</small><br />
-                                            <small class="text-muted">Quantity : @details.Count</small>
+                                @foreach (var details in Model.OrderDetails)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between p-2">
+                                        <div class="row container">
+                                            <div class="col-8">
+                                                <input type="hidden" asp-for="@details.Id" />
+                                                <h6 class="my-0 text-primary">@details.Product.Title</h6>
+                                                <small class="text-muted">Price : @details.Price.ToString("C2")</small><br />
+                                                <small class="text-muted">Quantity : @details.Count</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <p class="text-success">@(String.Format("{0:C}", details.Count * details.Price))</p>
+                                            </div>
                                         </div>
-                                        <div class="col-4">
-                                            <p class="text-success">@(String.Format("{0:C}", details.Count * details.Price))</p>
-                                        </div>
-                                    </div>
-                                </li>
+                                    </li>
                                 }
                                 <li class="list-group-item bg-info">
                                     <div class="row container">
@@ -234,24 +237,56 @@
                                     </div>
                                 </li>
                             </ul>
-                            @if(User.IsInRole(SD.Role_Admin) || User.IsInRole(SD.Role_Employee))
+                            @if (User.IsInRole(SD.Role_Admin) || User.IsInRole(SD.Role_Employee))
                             {
                                 <br />
-                                if(Model.OrderHeader.OrderStatus == SD.StatusApproved)
+                                if (Model.OrderHeader.OrderStatus == SD.StatusApproved)
                                 {
                                     <a asp-action="StartProcessing" asp-route-id="@Model.OrderHeader.Id"
                                        class="btn btn-primary form-control">Start Processing</a>
                                 }
-                                if(Model.OrderHeader.OrderStatus == SD.StatusInProcess)
+                                if (Model.OrderHeader.OrderStatus == SD.StatusInProcess)
                                 {
-                                    <input type="submit" value="Ship Order" onclick="validateInput()"
-                                           class="btn btn-primary form-control" 
-                                           formaction="/Admin/Order/ShipOrder" formmethod="post"/>
+                                    <input type="submit" value="Ship Order" onclick="return validateInput()"
+                                           class="btn btn-primary form-control"
+                                           formaction="/Admin/Order/ShipOrder/@Model.OrderHeader.Id" formmethod="post" />
                                 }
                             }
                             else
                             {
                                 <label class="btn btn-primary form-control">@Model.OrderHeader.OrderStatus</label>
+                            }
+
+                            @{
+                                var OrderTotalForStripe = Model.OrderHeader.OrderTotal * 100;
+                            }
+
+                            @if (Model.OrderHeader.PaymentStatus == SD.PaymentStatusDelayedPayment
+                              && Model.OrderHeader.OrderStatus == SD.StatusShipped)
+                            {
+                                <script src="https://checkout.stripe.com/checkout.js" class="stripe-button"
+                                        data-key="@Stripe.Value.StripePublishableKey"
+                                        data-amount="@OrderTotalForStripe"
+                                        data-name="Bulky Book"
+                                        data-label="Place Order"
+                                        data-description="Get Books, For Less"
+                                        data-locale="auto"
+                                        data-allow-remember-me="false"
+                                        data-image="https://stripe.com/img/documentation/checkout/marketplace.png">
+                                </script>
+                                <script>
+                                    document.getElementsByClassName("stripe-button-el")[0].style.display = 'none';
+                                </script>
+                                <button type="submit" value="Place Order" class="btn btn-success form-control">Pay Now</button>
+                            }
+
+                            @if (Model.OrderHeader.OrderStatus != SD.StatusRefunded
+                          && Model.OrderHeader.OrderStatus != SD.StatusCanceled
+                          && (User.IsInRole(SD.Role_Admin) || User.IsInRole(SD.Role_Employee)))
+                            {
+                                <div class="pt-2">
+                                    <a asp-action="CancelOrder" asp-route-id="@Model.OrderHeader.Id" class="btn btn-danger form-control">Cancel Order</a>
+                                </div>
                             }
                         </div>
                     </div>
@@ -260,3 +295,36 @@
         </div>
     </div>
 </form>
+
+@section Scripts{
+    <script>
+
+        function validateInput() {
+            var tracking = document.getElementById("trackingNumber").value;
+            var carrier = document.getElementById("carrier").value;
+
+            if (tracking.toString() == '') {
+                swal("Error", "Please enter the tracking number.", "error")
+                return false;
+            } else if (carrier.toString() == '') {
+                swal("Error", "Please enter the carrier.", "error")
+                return false;
+            } else {
+                return true;
+            }
+        }
+
+        // Remove default value for date time
+        $(document).ready(function () {
+            var shippingDate = document.getElementById("shippingDate");
+            if (shippingDate.value == '1/1/0001') {
+                shippingDate.value = "";
+            }
+            var paymentDate = document.getElementById("paymentDate");
+            if (paymentDate.value == '1/1/0001') {
+                paymentDate.value = "";
+            }
+        });
+
+    </script>
+}
