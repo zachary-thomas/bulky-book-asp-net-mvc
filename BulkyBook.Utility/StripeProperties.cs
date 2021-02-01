@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BulkyBook.Utility
 {
-    public class StripeSettings
+    public class StripeProperties
     {
         public string StripePublishableKey { get; set; }
         public string StripeSecretKey { get; set; }

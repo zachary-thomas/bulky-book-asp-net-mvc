@@ -2,7 +2,7 @@
 @using BulkyBook.Utility
 @using Microsoft.Extensions.Options
 
-@inject IOptions<BulkyBook.Utility.StripeSettings> Stripe
+@inject IOptions<BulkyBook.Utility.StripeProperties> Stripe
 
 <form method="post">
     <input hidden asp-for="OrderHeader.Id" />

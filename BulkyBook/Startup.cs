@@ -56,8 +56,9 @@ namespace BulkyBook
             services.AddControllersWithViews().AddRazorRuntimeCompilation();
             services.AddRazorPages();
 
-            services.Configure<SecretProperties>(SecretPropertiesConfig);
-            services.Configure<StripeSettings>(SecretPropertiesConfig.GetSection("StripeSettings"));
+            services.Configure<StripeProperties>(SecretPropertiesConfig.GetSection("StripeProperties"));
+
+            services.Configure<TwilioProperties>(SecretPropertiesConfig.GetSection("TwilioProperties"));
 
             // Needed for redirect on authorization
             services.ConfigureApplicationCookie(options =>
@@ -117,7 +118,7 @@ namespace BulkyBook
             app.UseRouting();
 
             StripeConfiguration.ApiKey = 
-                SecretPropertiesConfig.GetSection("StripeSettings")["StripeSecretKey"];
+                SecretPropertiesConfig.GetSection("StripeProperties")["StripeSecretKey"];
 
             app.UseSession();
 

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using Stripe;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using Twilio;
+using Twilio.Rest.Api.V2010.Account;
 
 namespace BulkyBook.Areas.Customer.Controllers
 {
@@ -26,16 +29,19 @@ namespace BulkyBook.Areas.Customer.Controllers
         private readonly IEmailSender emailSender;
         private readonly UserManager<IdentityUser> userManager;
         private readonly IMapper mapper;
+        private TwilioProperties twilioProperties { get; set; }
 
-        public CartController(IUnitOfWork unitOfWork, 
-            IEmailSender emailSender, 
+        public CartController(IUnitOfWork unitOfWork,
+            IEmailSender emailSender,
             UserManager<IdentityUser> userManager,
-            IMapper mapper)
+            IMapper mapper,
+            IOptions<TwilioProperties> twilioOptions)
         {
             this.unitOfWork = unitOfWork;
             this.emailSender = emailSender;
             this.userManager = userManager;
             this.mapper = mapper;
+            this.twilioProperties = twilioOptions.Value;
         }
 
         public IActionResult Index()
@@ -68,7 +74,7 @@ namespace BulkyBook.Areas.Customer.Controllers
             Claim claim = GetClaim();
             var user = unitOfWork.ApplicationUser.GetFirstOrDefault(u => u.Id == claim.Value);
 
-            if(user == null)
+            if (user == null)
             {
                 ModelState.AddModelError(string.Empty, "Verification email is empty.");
             }
@@ -105,7 +111,7 @@ namespace BulkyBook.Areas.Customer.Controllers
         {
             var cart = unitOfWork.ShoppingCart.GetFirstOrDefault(c => c.Id == cartId, includeProperties: "Product");
 
-            if(cart.Count == 1)
+            if (cart.Count == 1)
             {
                 RemoveCart(cart);
             }
@@ -172,7 +178,7 @@ namespace BulkyBook.Areas.Customer.Controllers
                 .GetFirstOrDefault(c => c.Id == claim.Value, includeProperties: "Company");
 
             shoppingCartVM.ListCart = unitOfWork.ShoppingCart
-                .GetAll(c => c.ApplicationUserId == claim.Value,includeProperties: "Product");
+                .GetAll(c => c.ApplicationUserId == claim.Value, includeProperties: "Product");
 
             shoppingCartVM.OrderHeader.PaymentStatus = SD.PaymentStatusPending;
             shoppingCartVM.OrderHeader.OrderStatus = SD.StatusPending;
@@ -251,6 +257,24 @@ namespace BulkyBook.Areas.Customer.Controllers
 
         public IActionResult OrderConfirmation(int id)
         {
+            OrderHeader orderHeader = unitOfWork.OrderHeader.GetFirstOrDefault(u => u.Id == id);
+
+            TwilioClient.Init(twilioProperties.AccountSid, twilioProperties.AuthToken);
+
+            try
+            {
+                var message = MessageResource.Create(
+                    body: "Order Placed on BulkyBook. Your Order ID: " + id,
+                    from: new Twilio.Types.PhoneNumber(twilioProperties.PhoneNumber),
+                    to: new Twilio.Types.PhoneNumber(orderHeader.PhoneNumber)
+                    );
+            }
+            // Exception occurs when phone number is incorrect
+            catch (Exception ex)
+            {
+
+            }
+
             return View(id);
         }
 
