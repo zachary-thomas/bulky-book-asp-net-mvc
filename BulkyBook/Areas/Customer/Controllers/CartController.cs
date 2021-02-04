@@ -272,7 +272,7 @@ namespace BulkyBook.Areas.Customer.Controllers
             // Exception occurs when phone number is incorrect
             catch (Exception ex)
             {
-
+                _ = ex.Message.ToString();
             }
 
             return View(id);

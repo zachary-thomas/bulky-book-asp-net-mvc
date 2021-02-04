@@ -36,12 +36,14 @@ namespace BulkyBook.Areas.Admin.Controllers
         }
 
         // Insert and Update - Can get a null for creating
-        public IActionResult Upsert(int? id)
+        public async Task<IActionResult> Upsert(int? id)
         {
+            IEnumerable<Category> categories = await _unitOfWork.Category.GetAllAsync();
+
             ProductVM productVM = new ProductVM()
             {
                 Product = new Product(),
-                CategoryList = _unitOfWork.Category.GetAll().Select(i => new SelectListItem
+                CategoryList = categories.Select(i => new SelectListItem
                 {
                     Text = i.Name,
                     Value = i.Id.ToString()
@@ -71,7 +73,7 @@ namespace BulkyBook.Areas.Admin.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Upsert(ProductVM productVM)
+        public async Task<IActionResult> Upsert(ProductVM productVM)
         {
             if (ModelState.IsValid)
             {
@@ -124,9 +126,11 @@ namespace BulkyBook.Areas.Admin.Controllers
             }
             else
             {
+                IEnumerable<Category> categories = await _unitOfWork.Category.GetAllAsync();
+
                 // These need to be repopulated if the model is invalid, 
                 // otherwise the view will error without client validation.
-                productVM.CategoryList = _unitOfWork.Category.GetAll().Select(i => new SelectListItem
+                productVM.CategoryList = categories.Select(i => new SelectListItem
                 {
                     Text = i.Name,
                     Value = i.Id.ToString()

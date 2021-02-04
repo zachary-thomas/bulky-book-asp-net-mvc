@@ -23,7 +23,6 @@ namespace BulkyBook.ViewComponents
             var claims = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
 
             return View(unitOfWork.ApplicationUser.GetFirstOrDefault(u => u.Id == claims.Value));
-
         }
     }
 }
