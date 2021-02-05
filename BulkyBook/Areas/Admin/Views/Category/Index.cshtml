@@ -56,6 +56,22 @@
     }
 </div> 
 
+@section Scripts{ 
+
+<script>
+    function Delete(url) {
+        $.ajax({
+            type: 'DELETE',
+            url: url,
+            success: function (data) {
+                location.reload();
+            }
+        });
+    }
+</script>
+
+}
+
 @*  Commented out to show PageLinkTagHelper
     
     <div class="p-4 border rounded">
